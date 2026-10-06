@@ -41,10 +41,25 @@ input:focus,select:focus{border-color:#8aa3ff;box-shadow:0 0 0 3px var(--light)}
 .message{text-align:center;padding:35px 15px;color:var(--muted)}
 .favorites-panel{display:none}.favorites-panel.open{display:block}
 .fav-card{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:11px;margin-bottom:8px}
+.fav-number{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;background:var(--light);color:var(--primary);font-weight:700;border-radius:8px;font-size:13px;flex-shrink:0}
 .fav-info{flex:1;min-width:0}.fav-major{font-weight:700;margin-bottom:2px}.fav-university{color:#666;font-size:12px}.fav-meta{color:#888;font-size:11px;margin-top:3px}
+.move-btns{display:flex;flex-direction:column;gap:3px}
+.move-btn{border:1px solid var(--border);background:#f8f9fa;border-radius:6px;padding:4px 8px;font-size:11px;line-height:1;cursor:pointer;color:var(--text)}
+.move-btn:disabled{opacity:0.3;cursor:not-allowed}
+.move-btn:hover:not(:disabled){background:var(--light);border-color:#8aa3ff;color:var(--primary)}
 .remove{border:0;background:#fff0ef;color:#d93025;border-radius:8px;padding:7px 10px}
 .hidden{display:none!important}.loading{padding:40px;text-align:center;color:var(--muted)}
 @media(max-width:750px){.header-inner{padding:13px 12px}.container{padding:10px}h1{font-size:18px}.filter-grid{grid-template-columns:1fr}.info-grid{grid-template-columns:1fr}.toolbar{align-items:flex-start}}
+@media print{
+.header,.filters,.toolbar .small-actions,.move-btns,.remove,div[style*="text-align: center"]{display:none!important}
+body{background:#fff!important;color:#000!important}
+.container{max-width:100%!important;padding:0!important;margin:0!important}
+.favorites-panel{display:block!important}
+#normalPanel{display:none!important}
+.fav-card{break-inside:avoid;page-break-inside:avoid;border:1px solid #ccc!important;margin-bottom:10px}
+.fav-number,.code{background:#f0f0f0!important;color:#000!important;border:1px solid #bbb}
+.description{background:#f0f0f0!important;border:1px solid #ddd!important}
+}
 </style>
 </head>
 <body>
@@ -67,11 +82,16 @@ input:focus,select:focus{border-color:#8aa3ff;box-shadow:0 0 0 3px var(--light)}
 
 <section id="favoritesPanel" class="favorites-panel">
 <div class="toolbar"><div class="toolbar-title">لیست انتخاب‌های موردعلاقه</div>
-<div class="small-actions"><button id="copyCodes">کپی کدها</button><button id="downloadFavorites">خروجی JSON</button><button id="clearFavorites">حذف همه</button></div></div>
+<div class="small-actions">
+<button id="copyCodes">کپی کدها</button>
+<button id="downloadFavorites">خروجی JSON</button>
+<button id="downloadPdf">خروجی PDF / چاپ</button>
+<button id="clearFavorites">حذف همه</button>
+</div></div>
 <div id="favoritesList"></div>
 </section>
 
-<div style="text-align: center;"><h3 style="color: green;">اگه استفاده از این ابزار واست مفید بود، اگه دوست داشتی یه حمایتی از <a style="text-decoration: none;" href="https://mahak-charity.org/online-payment/">بچه های محک</a> بکن مرسی ❤️</h3></div>
+<div style="text-align: center;"><h3 style="color: green;">اگه استفاده از این ابزار واست مفید بود، اگه دوست داری یه حمایتی از <a style="text-decoration: none;" href="https://mahak-charity.org/online-payment/">بچه های محک</a> بکن مرسی ❤️</h3></div>
 <section id="normalPanel">
 <div class="toolbar"><div class="toolbar-title" id="resultTitle">کدرشته‌محل‌ها</div><div class="stats" id="resultCount"></div></div>
 <div id="results"><div class="loading">در حال بارگذاری اطلاعات...</div></div>
@@ -115,7 +135,7 @@ updateFavoriteCount();
 }catch(e){
 console.error(e);
 statsEl.textContent="خطا در دریافت فایل JSON";
-resultsEl.innerHTML='<div class="message">فایل JSON پیدا نشد یا قابل خواندن نیست.<br><br>مطمئن شوید <b>index.html</b> و <b>tajrobi_1405_rashteh_codes.json</b> در یک پوشه هستند.</div>';
+resultsEl.innerHTML='<div class="message">فایل JSON پیدا نشد یا قابل خواندن نیست.<br><br>مطمئن شوید <b>index.html</b> و <b>data.json</b> در یک پوشه هستند.</div>';
 }}
 function populateMajors(){
 majorEl.innerHTML='<option value="">انتخاب رشته...</option>';
@@ -144,34 +164,57 @@ resultsEl.innerHTML=visible.map(cardHTML).join("");
 if(rows.length>500)resultsEl.insertAdjacentHTML("beforeend",'<div class="message">۵۰۰ نتیجه اول نمایش داده شد. برای پیدا کردن مورد خاص از جستجو استفاده کنید.</div>');
 }
 function cardHTML(r){
-const active=favorites.has(r.code);
+const active=favorites.includes(r.code);
 return '<article class="card"><div class="card-top"><div class="card-title">'+esc(r.major)+' <span class="code" style="font-size: 19px;">کد '+esc(r.code)+'</span></div><button class="star '+(active?"active":"")+'" title="علاقه‌مندی" onclick="toggleFavorite(\''+safeJs(r.code)+'\')">'+(active?"★":"☆")+'</button></div>'+
 '<div class="info-grid"><div class="info-item"><b>دانشگاه:</b> '+esc(r.university||"-")+'</div><div class="info-item"><b>نوع دوره:</b> '+esc(r.course_type||"-")+'</div><div class="info-item"><b>جنسیت:</b> '+esc(r.gender||"-")+'</div><div class="info-item"><b>ظرفیت:</b> '+esc(r.capacity||"-")+'</div></div>'+
 (r.description?'<div class="description"><b>توضیحات:</b><br>'+esc(r.description)+'</div>':"")+'</article>';
 }
-function loadFavorites(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");return new Set(Array.isArray(x)?x.map(String):[])}catch{return new Set()}}
-function saveFavorites(){localStorage.setItem(STORAGE_KEY,JSON.stringify([...favorites]))}
-function updateFavoriteCount(){favCountEl.textContent=favorites.size.toLocaleString("fa-IR")}
+function loadFavorites(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");return Array.isArray(x)?x.map(String):[]}catch{return []}}
+function saveFavorites(){localStorage.setItem(STORAGE_KEY,JSON.stringify(favorites))}
+function updateFavoriteCount(){favCountEl.textContent=favorites.length.toLocaleString("fa-IR")}
 function toggleFavorite(code){
-if(favorites.has(code))favorites.delete(code);else favorites.add(code);
+const index=favorites.indexOf(code);
+if(index>-1)favorites.splice(index,1);else favorites.push(code);
 saveFavorites();updateFavoriteCount();
 if(favoritesPanel.classList.contains("open"))renderFavorites();else render();
 }
+function moveFavorite(index,direction){
+const targetIndex=index+direction;
+if(targetIndex<0||targetIndex>=favorites.length)return;
+const temp=favorites[index];
+favorites[index]=favorites[targetIndex];
+favorites[targetIndex]=temp;
+saveFavorites();
+renderFavorites();
+}
 function renderFavorites(){
-if(!favorites.size){favoritesListEl.innerHTML='<div class="message">هنوز رشته‌ای به علاقه‌مندی‌ها اضافه نکرده‌اید.</div>';return}
-const rows=[...favorites].map(code=>allRows.find(r=>r.code===code)).filter(Boolean);
-favoritesListEl.innerHTML=rows.map(r=>'<div class="fav-card"><div class="fav-info"><div class="fav-major">'+esc(r.major)+' <span class="code">'+esc(r.code)+'</span></div><div class="fav-university">'+esc(r.university||"-")+'</div><div class="fav-meta">'+esc(r.course_type||"-")+' • '+esc(r.gender||"-")+' • '+esc(r.capacity||"-")+'</div></div><button class="remove" onclick="toggleFavorite(\''+safeJs(r.code)+'\')">حذف</button></div>').join("");
+if(!favorites.length){favoritesListEl.innerHTML='<div class="message">هنوز رشته‌ای به علاقه‌مندی‌ها اضافه نکرده‌اید.</div>';return}
+const rows=favorites.map(code=>allRows.find(r=>r.code===code)).filter(Boolean);
+favoritesListEl.innerHTML=rows.map((r,index)=>'<div class="fav-card">'+
+'<div class="move-btns">'+
+'<button class="move-btn" onclick="moveFavorite('+index+',-1)" '+(index===0?'disabled':'')+' title="انتقال به بالا">▲</button>'+
+'<button class="move-btn" onclick="moveFavorite('+index+',1)" '+(index===rows.length-1?'disabled':'')+' title="انتقال به پایین">▼</button>'+
+'</div>'+
+'<div class="fav-number">'+(index+1).toLocaleString("fa-IR")+'</div>'+
+'<div class="fav-info"><div class="fav-major">'+esc(r.major)+' <span class="code">'+esc(r.code)+'</span></div><div class="fav-university">'+esc(r.university||"-")+'</div><div class="fav-meta">'+esc(r.course_type||"-")+' • '+esc(r.gender||"-")+' • '+esc(r.capacity||"-")+'</div>'+
+(r.description?'<div class="description"><b>توضیحات:</b><br>'+esc(r.description)+'</div>':'')+
+'</div>'+
+'<button class="remove" onclick="toggleFavorite(\''+safeJs(r.code)+'\')">حذف</button></div>').join("");
 }
 function showFavorites(){favoritesPanel.classList.add("open");normalPanel.classList.add("hidden");renderFavorites();scrollTo({top:0,behavior:"smooth"})}
 function showNormal(){favoritesPanel.classList.remove("open");normalPanel.classList.remove("hidden")}
 document.getElementById("showFavorites").onclick=()=>favoritesPanel.classList.contains("open")?showNormal():showFavorites();
-document.getElementById("clearFavorites").onclick=()=>{if(favorites.size&&confirm("همه انتخاب‌های موردعلاقه حذف شوند؟")){favorites.clear();saveFavorites();updateFavoriteCount();renderFavorites()}};
-document.getElementById("copyCodes").onclick=async()=>{if(!favorites.size)return alert("لیست علاقه‌مندی‌ها خالی است.");try{await navigator.clipboard.writeText([...favorites].join("\n"));alert("کدها کپی شدند.")}catch{alert("کپی خودکار انجام نشد.")}};
+document.getElementById("clearFavorites").onclick=()=>{if(favorites.length&&confirm("همه انتخاب‌های موردعلاقه حذف شوند؟")){favorites=[];saveFavorites();updateFavoriteCount();renderFavorites()}};
+document.getElementById("copyCodes").onclick=async()=>{if(!favorites.length)return alert("لیست علاقه‌مندی‌ها خالی است.");try{await navigator.clipboard.writeText(favorites.join("\n"));alert("کدها کپی شدند.")}catch{alert("کپی خودکار انجام نشد.")}};
 document.getElementById("downloadFavorites").onclick=()=>{
-const rows=[...favorites].map(c=>allRows.find(r=>r.code===c)).filter(Boolean);
+const rows=favorites.map(c=>allRows.find(r=>r.code===c)).filter(Boolean);
 if(!rows.length)return alert("لیست علاقه‌مندی‌ها خالی است.");
 const blob=new Blob([JSON.stringify(rows,null,2)],{type:"application/json;charset=utf-8"});
 const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="entekhab-reshteh-favorites.json";a.click();URL.revokeObjectURL(a.href);
+};
+document.getElementById("downloadPdf").onclick=()=>{
+if(!favorites.length)return alert("لیست علاقه‌مندی‌ها خالی است.");
+window.print();
 };
 majorEl.onchange=updateUniversities;
 universityEl.onchange=render;
